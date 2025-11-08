@@ -89,4 +89,80 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Prompt Templates
+export async function getActivePromptTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+  const { promptTemplates } = await import("../drizzle/schema");
+  return db.select().from(promptTemplates).where(eq(promptTemplates.isActive, 1));
+}
+
+export async function getPromptTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { promptTemplates } = await import("../drizzle/schema");
+  const result = await db.select().from(promptTemplates).where(eq(promptTemplates.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createPromptTemplate(data: { title: string; description?: string; content: string; createdBy: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { promptTemplates } = await import("../drizzle/schema");
+  const result = await db.insert(promptTemplates).values(data);
+  return result;
+}
+
+export async function updatePromptTemplate(id: number, data: { title?: string; description?: string; content?: string; isActive?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { promptTemplates } = await import("../drizzle/schema");
+  await db.update(promptTemplates).set(data).where(eq(promptTemplates.id, id));
+}
+
+export async function deletePromptTemplate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { promptTemplates } = await import("../drizzle/schema");
+  await db.update(promptTemplates).set({ isActive: 0 }).where(eq(promptTemplates.id, id));
+}
+
+// Conversations
+export async function getUserConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { conversations } = await import("../drizzle/schema");
+  return db.select().from(conversations).where(eq(conversations.userId, userId));
+}
+
+export async function getConversationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { conversations } = await import("../drizzle/schema");
+  const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createConversation(data: { userId: number; templateId?: number; title: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { conversations } = await import("../drizzle/schema");
+  const result = await db.insert(conversations).values(data);
+  return result;
+}
+
+// Messages
+export async function getConversationMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { messages } = await import("../drizzle/schema");
+  return db.select().from(messages).where(eq(messages.conversationId, conversationId));
+}
+
+export async function createMessage(data: { conversationId: number; role: "user" | "assistant" | "system"; content: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { messages } = await import("../drizzle/schema");
+  const result = await db.insert(messages).values(data);
+  return result;
+}
