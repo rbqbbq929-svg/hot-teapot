@@ -290,10 +290,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   
   const payload: Record<string, unknown> = useGeminiApi
     ? {
-        contents: messages.map(msg => ({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content) }]
-        })).filter(msg => msg.role !== "system"),
+        contents: messages
+          .filter(msg => msg.role !== "system")
+          .map(msg => ({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content) }]
+          })),
         systemInstruction: messages.find(m => m.role === "system") 
           ? { parts: [{ text: typeof messages.find(m => m.role === "system")!.content === "string" 
               ? messages.find(m => m.role === "system")!.content 
