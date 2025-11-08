@@ -4,10 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { Streamdown } from "streamdown";
+import { toPng } from "html-to-image";
+import { toast } from "sonner";
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
@@ -71,6 +73,32 @@ export default function Chat() {
     }
   };
 
+  const handleExportMessage = async (messageId: number) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (!element) {
+      toast.error("无法找到消息元素");
+      return;
+    }
+
+    try {
+      const dataUrl = await toPng(element, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+
+      const link = document.createElement("a");
+      link.download = `message-${messageId}-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      toast.success("导出成功");
+    } catch (error) {
+      console.error("导出失败:", error);
+      toast.error("导出失败，请重试");
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -130,21 +158,35 @@ export default function Chat() {
                   key={msg.id}
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <Card
-                    className={`max-w-[80%] ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card text-card-foreground"
-                    }`}
-                  >
-                    <div className="p-4">
-                      {msg.role === "assistant" ? (
-                        <Streamdown>{msg.content}</Streamdown>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                      )}
-                    </div>
-                  </Card>
+                  <div className="flex flex-col gap-2 max-w-[80%]">
+                    <Card
+                      id={`message-${msg.id}`}
+                      className={`${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-card-foreground"
+                      }`}
+                    >
+                      <div className="p-4">
+                        {msg.role === "assistant" ? (
+                          <Streamdown>{msg.content}</Streamdown>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                      </div>
+                    </Card>
+                    {msg.role === "assistant" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="self-start"
+                        onClick={() => handleExportMessage(msg.id)}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        导出为图片
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
               {sendMessage.isPending && (
