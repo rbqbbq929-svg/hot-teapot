@@ -209,14 +209,20 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+const resolveApiUrl = () => {
+  // Use Google Gemini API directly
+  if (process.env.GEMINI_API_KEY) {
+    return "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+  }
+  // Fallback to Manus Forge API
+  return ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
     ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
     : "https://forge.manus.im/v1/chat/completions";
+};
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!process.env.GEMINI_API_KEY && !ENV.forgeApiKey) {
+    throw new Error("API key is not configured");
   }
 };
 
@@ -279,10 +285,25 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
-  const payload: Record<string, unknown> = {
-    model: "gemini-2.0-flash-thinking-exp-01-21",
-    messages: messages.map(normalizeMessage),
-  };
+  // Use Google Gemini API format if GEMINI_API_KEY is set
+  const useGeminiApi = !!process.env.GEMINI_API_KEY;
+  
+  const payload: Record<string, unknown> = useGeminiApi
+    ? {
+        contents: messages.map(msg => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content) }]
+        })).filter(msg => msg.role !== "system"),
+        systemInstruction: messages.find(m => m.role === "system") 
+          ? { parts: [{ text: typeof messages.find(m => m.role === "system")!.content === "string" 
+              ? messages.find(m => m.role === "system")!.content 
+              : JSON.stringify(messages.find(m => m.role === "system")!.content) }] }
+          : undefined,
+      }
+    : {
+        model: "gemini-2.0-flash-thinking-exp-01-21",
+        messages: messages.map(normalizeMessage),
+      };
 
   if (tools && tools.length > 0) {
     payload.tools = tools;
@@ -312,12 +333,21 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
+  const apiUrl = useGeminiApi 
+    ? `${resolveApiUrl()}?key=${process.env.GEMINI_API_KEY}`
+    : resolveApiUrl();
+  
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  
+  if (!useGeminiApi) {
+    headers.authorization = `Bearer ${ENV.forgeApiKey}`;
+  }
+  
+  const response = await fetch(apiUrl, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -328,5 +358,25 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     );
   }
 
-  return (await response.json()) as InvokeResult;
+  const result = await response.json();
+  
+  // Convert Gemini API response to OpenAI format
+  if (useGeminiApi) {
+    const content = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return {
+      id: "gemini-" + Date.now(),
+      created: Date.now(),
+      model: "gemini-2.0-flash-exp",
+      choices: [{
+        index: 0,
+        message: {
+          role: "assistant",
+          content,
+        },
+        finish_reason: result.candidates?.[0]?.finishReason || "stop",
+      }],
+    } as InvokeResult;
+  }
+  
+  return result as InvokeResult;
 }

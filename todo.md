@@ -46,3 +46,9 @@
 - [x] 将模型从 gemini-2.0-flash-exp更改为gemini-2.0-flash-thinking-exp-01-21
 - [x] 测试模型响应
 - [x] 保存检查点
+
+## 切换到Gemini官方API
+- [x] 修改LLM配置使用Google官方Gemini API
+- [x] 使用gemini-2.0-flash-exp模型
+- [x] 测试API调用
+- [x] 保存检查点
