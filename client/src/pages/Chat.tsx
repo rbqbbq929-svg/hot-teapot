@@ -206,14 +206,24 @@ export default function Chat() {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder="输入你的问题..."
               disabled={sendMessage.isPending || !conversationId}
-              className="flex-1"
+              className="flex-1 touch-manipulation"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
             />
             <Button
               onClick={handleSend}
               disabled={!input.trim() || sendMessage.isPending || !conversationId}
+              className="touch-manipulation"
             >
               <Send className="h-4 w-4" />
             </Button>
