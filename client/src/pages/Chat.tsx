@@ -15,7 +15,7 @@ export default function Chat() {
   const { id } = useParams<{ id: string }>();
   const templateId = parseInt(id || "0");
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,20 +39,17 @@ export default function Chat() {
     },
   });
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      window.location.href = getLoginUrl();
-    }
-  }, [authLoading, isAuthenticated]);
+  // Remove login requirement for guest users
 
   useEffect(() => {
-    if (isAuthenticated && template && !conversationId) {
+    if (template && !conversationId) {
       createConversation.mutate({
         templateId: template.id,
         title: template.title,
+        userId: user?.id,
       });
     }
-  }, [isAuthenticated, template, conversationId]);
+  }, [template, conversationId, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,25 +96,14 @@ export default function Chat() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   if (!template) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <p className="text-muted-foreground mb-4">模板不存在</p>
-          <Link href="/">
-            <Button>返回首页</Button>
-          </Link>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">稍等</p>
         </div>
       </div>
     );
@@ -143,7 +129,7 @@ export default function Chat() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">欢迎, {user?.name}</span>
+            {user?.name && <span className="text-sm text-muted-foreground">欢迎, {user.name}</span>}
           </div>
         </div>
       </header>

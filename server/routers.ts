@@ -76,51 +76,49 @@ export const appRouter = router({
       const { getUserConversations } = await import("./db");
       return getUserConversations(ctx.user.id);
     }),
-    getById: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
+    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       const { getConversationById } = await import("./db");
       const conversation = await getConversationById(input.id);
-      if (!conversation || conversation.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
+      if (!conversation) {
+        throw new TRPCError({ code: "NOT_FOUND" });
       }
       return conversation;
     }),
-    create: protectedProcedure
+    create: publicProcedure
       .input(
         z.object({
           templateId: z.number().optional(),
           title: z.string(),
+          userId: z.number().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
         const { createConversation } = await import("./db");
-        return createConversation({ ...input, userId: ctx.user.id });
+        const userId = ctx.user?.id || input.userId || 0;
+        return createConversation({ ...input, userId });
       }),
   }),
 
   // Messages
   messages: router({
-    list: protectedProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input, ctx }) => {
-      const { getConversationById, getConversationMessages } = await import("./db");
-      const conversation = await getConversationById(input.conversationId);
-      if (!conversation || conversation.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+    list: publicProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => {
+      const { getConversationMessages } = await import("./db");
       return getConversationMessages(input.conversationId);
     }),
-    send: protectedProcedure
+    send: publicProcedure
       .input(
         z.object({
           conversationId: z.number(),
           content: z.string(),
         })
       )
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const { getConversationById, getConversationMessages, createMessage, getPromptTemplateById } = await import("./db");
         const { invokeLLM } = await import("./_core/llm");
         
         const conversation = await getConversationById(input.conversationId);
-        if (!conversation || conversation.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
+        if (!conversation) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "对话不存在" });
         }
 
         // Save user message

@@ -8,27 +8,17 @@ import { useEffect } from "react";
 import { Link } from "wouter";
 
 export default function Conversations() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { data: conversations, isLoading } = trpc.conversations.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
+  // Redirect to home if not authenticated (conversations require login)
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      window.location.href = getLoginUrl();
+    if (!isAuthenticated) {
+      window.location.href = "/";
     }
-  }, [authLoading, isAuthenticated]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-accent/20">
