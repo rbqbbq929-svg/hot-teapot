@@ -40,4 +40,9 @@
 - [x] 测试移动端输入功能
 - [x] 创建GitHub仓库
 - [x] 发布项目到GitHub
-- [ ] 保存检查点
+- [x] 保存检查点
+
+## 模型配置更新
+- [x] 将模型从 gemini-2.0-flash-exp更改为gemini-2.0-flash-thinking-exp-01-21
+- [x] 测试模型响应
+- [x] 保存检查点
